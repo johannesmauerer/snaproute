@@ -1,0 +1,25 @@
+name: SnapRoute
+options:
+  bundleIdPrefix: com.johannesmauerer
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "16.0"
+
+targets:
+  SnapRoute:
+    type: application
+    platform: iOS
+    sources:
+      - SnapRoute
+    info:
+      path: SnapRoute/Info.plist
+      properties:
+        CFBundleDisplayName: SnapRoute
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        INFOPLIST_FILE: SnapRoute/Info.plist

@@ -1,0 +1,37 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserdata
+*.xcworkspace/xcuserdata/
+xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# CocoaPods
+Pods/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local tooling
+.agents/
+.claude/
+CLAUDE.md
+AGENTS.md
+
+# Provisioning
+*.mobileprovision
+*.provisionprofile
+
+# Secrets
+.env
+.env.local
