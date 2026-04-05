@@ -31,7 +31,26 @@ struct ActionView: View {
             .padding(.vertical, 10)
             .background(Color(.systemGray6))
 
-            // Action buttons
+            // Web preview — top half, loaded async (doesn't block actions)
+            WebPreview(url: url, onTitleLoaded: { title in
+                router.pageTitle = title
+            })
+
+            Divider()
+
+            // Result toast
+            if let result = router.actionResult {
+                HStack {
+                    Image(systemName: result.isError ? "xmark.circle.fill" : "checkmark.circle.fill")
+                    Text(result.message)
+                        .font(.subheadline)
+                }
+                .foregroundStyle(result.isError ? .red : .green)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            }
+
+            // Action buttons — bottom half, easy thumb reach
             VStack(spacing: 12) {
                 ActionButton(
                     title: "Open in Safari",
@@ -58,25 +77,6 @@ struct ActionView: View {
                 }
             }
             .padding(16)
-
-            // Result toast
-            if let result = router.actionResult {
-                HStack {
-                    Image(systemName: result.isError ? "xmark.circle.fill" : "checkmark.circle.fill")
-                    Text(result.message)
-                        .font(.subheadline)
-                }
-                .foregroundStyle(result.isError ? .red : .green)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-            }
-
-            Divider()
-
-            // Web preview — bottom half, loaded async
-            WebPreview(url: url, onTitleLoaded: { title in
-                router.pageTitle = title
-            })
         }
     }
 }
