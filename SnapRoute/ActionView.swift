@@ -8,102 +8,115 @@ struct ActionView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // URL bar
-            HStack {
-                Image(systemName: "link")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                Text(url.absoluteString)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            // URL bar — minimal, sharp
+            HStack(spacing: 8) {
+                Text(url.host ?? url.absoluteString)
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.primary.opacity(0.5))
                     .lineLimit(1)
-                    .truncationMode(.middle)
                 Spacer()
                 Button {
                     showSettings = true
                 } label: {
-                    Image(systemName: "gear")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.primary.opacity(0.35))
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Color(.systemGray6))
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
 
-            // Web preview — top half, loaded async (doesn't block actions)
+            // Thin separator
+            Rectangle()
+                .fill(.primary.opacity(0.06))
+                .frame(height: 1)
+
+            // Web preview — top half
             WebPreview(url: url, onTitleLoaded: { title in
                 router.pageTitle = title
             })
 
-            Divider()
+            // Thin separator
+            Rectangle()
+                .fill(.primary.opacity(0.06))
+                .frame(height: 1)
 
             // Result toast
             if let result = router.actionResult {
-                HStack {
-                    Image(systemName: result.isError ? "xmark.circle.fill" : "checkmark.circle.fill")
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(result.isError ? .red : Color(hex: "2D6A4F"))
+                        .frame(width: 6, height: 6)
                     Text(result.message)
-                        .font(.subheadline)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(result.isError ? .red : Color(hex: "2D6A4F"))
                 }
-                .foregroundStyle(result.isError ? .red : .green)
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
             }
 
-            // Action buttons — bottom half, easy thumb reach
-            VStack(spacing: 12) {
+            // Action buttons — bottom, easy reach
+            VStack(spacing: 8) {
                 ActionButton(
-                    title: "Open in Safari",
-                    icon: "safari",
-                    color: .blue
+                    title: "Safari",
+                    icon: "arrow.up.right",
+                    accent: Color(hex: "1A1A1A")
                 ) {
                     router.openInSafari()
                 }
 
                 ActionButton(
-                    title: "Send to ShelfRead",
-                    icon: "book.closed",
-                    color: .orange
+                    title: "ShelfRead",
+                    icon: "text.page",
+                    accent: Color(hex: "1A1A1A")
                 ) {
                     router.sendToShelfRead()
                 }
 
                 ActionButton(
-                    title: "Save to Obsidian",
+                    title: "Obsidian",
                     icon: "square.and.arrow.down",
-                    color: .purple
+                    accent: Color(hex: "1A1A1A")
                 ) {
                     router.saveToObsidian()
                 }
             }
-            .padding(16)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .padding(.bottom, 4)
         }
+        .background(Color(.systemBackground))
     }
 }
 
 struct ActionButton: View {
     let title: String
     let icon: String
-    let color: Color
+    let accent: Color
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack {
+            HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .frame(width: 24)
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(width: 20)
                 Text(title)
-                    .fontWeight(.medium)
+                    .font(.system(size: 15, weight: .medium))
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.primary.opacity(0.2))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(color.opacity(0.1))
-            .foregroundStyle(color)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(.primary.opacity(0.03))
+            .foregroundStyle(accent)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(.primary.opacity(0.06), lineWidth: 1)
+            )
         }
     }
 }
@@ -141,5 +154,27 @@ struct WebPreview: UIViewRepresentable {
                 }
             }
         }
+    }
+}
+
+// Hex color extension
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let r, g, b: UInt64
+        switch hex.count {
+        case 6:
+            (r, g, b) = ((int >> 16) & 0xFF, (int >> 8) & 0xFF, int & 0xFF)
+        default:
+            (r, g, b) = (0, 0, 0)
+        }
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue: Double(b) / 255
+        )
     }
 }

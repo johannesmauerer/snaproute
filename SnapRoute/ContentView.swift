@@ -24,28 +24,67 @@ struct EmptyStateView: View {
     @Binding var showSettings: Bool
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             Spacer()
-            Image(systemName: "arrow.triangle.branch")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-            Text("SnapRoute")
-                .font(.title.bold())
-            Text("Set as your default browser in\nSettings > Apps > Default Browser App")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+
+            VStack(spacing: 20) {
+                // Logo mark — sharp, geometric
+                ZStack {
+                    Rectangle()
+                        .fill(.primary.opacity(0.04))
+                        .frame(width: 72, height: 72)
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.system(size: 28, weight: .light))
+                        .foregroundStyle(.primary.opacity(0.6))
+                }
+
+                VStack(spacing: 6) {
+                    Text("SnapRoute")
+                        .font(.system(size: 22, weight: .semibold, design: .default))
+                        .tracking(0.5)
+                    Text("Set as default browser in\nSettings \u{2192} Apps \u{2192} Default Browser")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(2)
+                }
+            }
+
             Spacer()
-            #if DEBUG
-            Button("Test with example.com") {
-                router.handleURL(URL(string: "https://example.com")!)
+
+            VStack(spacing: 8) {
+                #if DEBUG
+                Button {
+                    router.handleURL(URL(string: "https://example.com")!)
+                } label: {
+                    Text("Test")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.primary.opacity(0.4))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(.primary.opacity(0.1), lineWidth: 1)
+                        )
+                }
+                #endif
+
+                Button {
+                    showSettings = true
+                } label: {
+                    Text("Settings")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.primary.opacity(0.4))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(.primary.opacity(0.1), lineWidth: 1)
+                        )
+                }
             }
-            .padding(.bottom, 8)
-            #endif
-            Button("Settings") {
-                showSettings = true
-            }
-            .padding(.bottom, 32)
+            .padding(.bottom, 40)
         }
+        .background(Color(.systemBackground))
     }
 }

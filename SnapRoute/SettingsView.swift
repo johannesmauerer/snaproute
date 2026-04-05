@@ -15,33 +15,42 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("ShelfRead") {
-                    TextField("Ingest URL", text: $shelfReadURL)
-                        .textContentType(.URL)
-                        .autocapitalization(.none)
-                        .keyboardType(.URL)
-                    Text("e.g. https://your-deployment.convex.site/ingest")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 32) {
+                    // ShelfRead section
+                    SettingsSection(title: "SHELFREAD") {
+                        SettingsField(
+                            label: "Ingest URL",
+                            placeholder: "https://your-deployment.convex.site/ingest",
+                            text: $shelfReadURL,
+                            keyboardType: .URL
+                        )
+                    }
 
-                Section("Obsidian") {
-                    TextField("Vault name", text: $obsidianVault)
-                        .autocapitalization(.none)
-                    TextField("Folder", text: $obsidianFolder)
-                        .autocapitalization(.none)
-                    Text("Notes will be saved to this folder in your vault")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                    // Obsidian section
+                    SettingsSection(title: "OBSIDIAN") {
+                        SettingsField(
+                            label: "Vault",
+                            placeholder: "My Vault",
+                            text: $obsidianVault
+                        )
+                        SettingsField(
+                            label: "Folder",
+                            placeholder: "Inbox",
+                            text: $obsidianFolder
+                        )
+                    }
 
-                Section("Default Browser") {
-                    Text("To use SnapRoute as your default browser, go to Settings > Apps > Default Browser App and select SnapRoute.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    // Info section
+                    SettingsSection(title: "DEFAULT BROWSER") {
+                        Text("Settings \u{2192} Apps \u{2192} Default Browser App \u{2192} SnapRoute")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                .padding(20)
             }
+            .background(Color(.systemBackground))
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -50,6 +59,7 @@ struct SettingsView: View {
                         save()
                         dismiss()
                     }
+                    .font(.system(size: 15, weight: .medium))
                 }
             }
         }
@@ -61,5 +71,47 @@ struct SettingsView: View {
         settings.obsidianVault = obsidianVault.trimmingCharacters(in: .whitespacesAndNewlines)
         settings.obsidianFolder = obsidianFolder.trimmingCharacters(in: .whitespacesAndNewlines)
         settings.save()
+    }
+}
+
+struct SettingsSection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.primary.opacity(0.3))
+                .tracking(1.5)
+            content
+        }
+    }
+}
+
+struct SettingsField: View {
+    let label: String
+    let placeholder: String
+    @Binding var text: String
+    var keyboardType: UIKeyboardType = .default
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+            TextField(placeholder, text: $text)
+                .font(.system(size: 15))
+                .autocapitalization(.none)
+                .keyboardType(keyboardType)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(.primary.opacity(0.03))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(.primary.opacity(0.06), lineWidth: 1)
+                )
+        }
     }
 }
