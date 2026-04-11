@@ -20,8 +20,48 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>0.1.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.rawplusdry.snaproute</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>snaproute</string>
+			</array>
+			<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleTypeName</key>
+			<string>HTML Document</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.url</string>
+				<string>public.html</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>obsidian</string>
+	</array>
+</dict>
+	</array>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>28</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>obsidian</string>
+		<string>snaproute</string>
+	</array>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
