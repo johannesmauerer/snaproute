@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import WebKit
 import Combine
 
 enum InputMode: Equatable {
@@ -33,6 +34,8 @@ class URLRouter: ObservableObject {
     @Published var actionResult: ActionResult?
     @Published var isMinimized: Bool = false
     @Published var showHistory: Bool = false
+
+    weak var webView: WKWebView?
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -227,48 +230,55 @@ class URLRouter: ObservableObject {
             return
         }
 
-        // Fetch page HTML first, then send to /ingest-article
-        var fetchRequest = URLRequest(url: url)
-        fetchRequest.timeoutInterval = 10
-        fetchRequest.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
-
-        URLSession.shared.dataTask(with: fetchRequest) { [weak self] data, fetchResponse, fetchError in
-            var components = baseComponents
-            var payload: [String: String] = ["url": url.absoluteString]
-
-            if fetchError == nil,
-               let data,
-               let html = String(data: data, encoding: .utf8),
-               html.count >= 100 {
-                components.path = "/ingest-article"
-                payload["html"] = html
-            } else {
-                components.path = "/ingest-url"
-            }
-
-            guard let endpoint = components.url else {
-                DispatchQueue.main.async { self?.showToast("Invalid ShelfRead URL", isError: true) }
-                return
-            }
-
-            var request = URLRequest(url: endpoint)
-            request.httpMethod = "POST"
-            request.timeoutInterval = 15
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
-
-            URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
-                DispatchQueue.main.async {
-                    if error != nil {
-                        self?.showToast("Failed to send", isError: true)
-                    } else if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                        self?.recordHistory(action: "shelfRead")
-                        self?.showToast("Sent to ShelfRead", isError: false)
-                    } else {
-                        self?.showToast("ShelfRead error", isError: true)
-                    }
+        // Extract HTML directly from the WebView (real browser-rendered content)
+        if let webView = self.webView {
+            webView.evaluateJavaScript("document.documentElement.outerHTML") { [weak self] result, error in
+                if let html = result as? String, html.count >= 100 {
+                    self?.postToShelfRead(baseComponents: baseComponents, url: url, html: html)
+                } else {
+                    // WebView extraction failed — fall back to /ingest-url
+                    self?.postToShelfRead(baseComponents: baseComponents, url: url, html: nil)
                 }
-            }.resume()
+            }
+        } else {
+            // No WebView available — fall back to /ingest-url
+            postToShelfRead(baseComponents: baseComponents, url: url, html: nil)
+        }
+    }
+
+    private func postToShelfRead(baseComponents: URLComponents, url: URL, html: String?) {
+        var components = baseComponents
+        var payload: [String: String] = ["url": url.absoluteString]
+
+        if let html {
+            components.path = "/ingest-article"
+            payload["html"] = html
+        } else {
+            components.path = "/ingest-url"
+        }
+
+        guard let endpoint = components.url else {
+            showToast("Invalid ShelfRead URL", isError: true)
+            return
+        }
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+
+        URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
+            DispatchQueue.main.async {
+                if error != nil {
+                    self?.showToast("Failed to send", isError: true)
+                } else if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    self?.recordHistory(action: "shelfRead")
+                    self?.showToast("Sent to ShelfRead", isError: false)
+                } else {
+                    self?.showToast("ShelfRead error", isError: true)
+                }
+            }
         }.resume()
     }
 

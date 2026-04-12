@@ -1,150 +1,194 @@
 import SwiftUI
 import WebKit
 
-struct ActionView: View {
-    let url: URL
+// MARK: - Floating Input Bar
+
+struct FloatingInputBar: View {
     @ObservedObject var router: URLRouter
     @Binding var showSettings: Bool
+    @FocusState.Binding var isInputFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            // URL bar — minimal, sharp
-            HStack(spacing: 8) {
-                Text(url.host ?? url.absoluteString)
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.primary.opacity(0.5))
-                    .lineLimit(1)
-                Spacer()
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.primary.opacity(0.35))
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-
-            // Thin separator
-            Rectangle()
-                .fill(.primary.opacity(0.06))
-                .frame(height: 1)
-
-            // Web preview — top half
-            WebPreview(url: url, onTitleLoaded: { title in
-                router.pageTitle = title
-            })
-
-            // Thin separator
-            Rectangle()
-                .fill(.primary.opacity(0.06))
-                .frame(height: 1)
-
+        VStack(spacing: 10) {
             // Result toast
             if let result = router.actionResult {
                 HStack(spacing: 6) {
-                    Circle()
-                        .fill(result.isError ? .red : Color(hex: "2D6A4F"))
-                        .frame(width: 6, height: 6)
+                    Image(systemName: result.isError ? "xmark.circle.fill" : "checkmark.circle.fill")
+                        .font(.system(size: 13))
                     Text(result.message)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(result.isError ? .red : Color(hex: "2D6A4F"))
+                        .font(.system(size: 13, weight: .medium))
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
+                .foregroundStyle(result.isError ? Color.red : Color.green)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    (result.isError ? Color.red : Color.green).opacity(0.1)
+                )
+                .clipShape(Capsule())
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
-            // Action buttons — bottom, easy reach
-            VStack(spacing: 8) {
-                ActionButton(
-                    title: "Safari",
-                    icon: "arrow.up.right",
-                    accent: Color(hex: "1A1A1A")
-                ) {
-                    router.openInSafari()
+            // Action buttons
+            if !router.availableActions.isEmpty {
+                FlowLayout(spacing: 8) {
+                    ForEach(router.availableActions) { action in
+                        FloatingActionButton(action: action)
+                    }
                 }
-
-                ActionButton(
-                    title: "ShelfRead",
-                    icon: "text.page",
-                    accent: Color(hex: "1A1A1A")
-                ) {
-                    router.sendToShelfRead()
-                }
-
-                ActionButton(
-                    title: "Obsidian",
-                    icon: "square.and.arrow.down",
-                    accent: Color(hex: "1A1A1A")
-                ) {
-                    router.saveToObsidian()
-                }
+                .padding(.horizontal, 12)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .padding(.bottom, 4)
-        }
-        .background(Color(.systemBackground))
-    }
-}
 
-struct ActionButton: View {
-    let title: String
-    let icon: String
-    let accent: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                    .frame(width: 20)
-                Text(title)
+            // Input row
+            HStack(spacing: 10) {
+                Image(systemName: inputIcon)
                     .font(.system(size: 15, weight: .medium))
-                Spacer()
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.primary.opacity(0.2))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+
+                TextField("Search or enter URL...", text: $router.inputText, axis: .vertical)
+                    .font(.system(size: 16))
+                    .lineLimit(1...4)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+                    .keyboardType(.webSearch)
+                    .submitLabel(.search)
+                    .focused($isInputFocused)
+                    .onSubmit {
+                        router.handleSubmit()
+                    }
+
+                // Clear button
+                if !router.inputText.isEmpty {
+                    Button {
+                        router.clearInput()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.secondary.opacity(0.6))
+                    }
+                }
+
+                // Minimize button
+                Button {
+                    isInputFocused = false
+                    router.toggleMinimize()
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                }
+
+                // Settings
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(.primary.opacity(0.03))
-            .foregroundStyle(accent)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(.primary.opacity(0.06), lineWidth: 1)
-            )
+            .padding(.vertical, 12)
+        }
+        .padding(.top, 10)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.12), radius: 16, y: -2)
+        .animation(.easeInOut(duration: 0.2), value: router.inputMode)
+        .animation(.easeInOut(duration: 0.2), value: router.actionResult?.id)
+    }
+
+    private var inputIcon: String {
+        switch router.inputMode {
+        case .empty: return "magnifyingglass"
+        case .url: return "globe"
+        case .text: return "pencil"
         }
     }
 }
+
+// MARK: - Minimized Bubble
+
+struct MinimizedBubble: View {
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            Image(systemName: "arrow.triangle.branch")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.primary)
+                .frame(width: 52, height: 52)
+                .background(.regularMaterial)
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.15), radius: 12, y: 2)
+        }
+    }
+}
+
+// MARK: - Action Button
+
+struct FloatingActionButton: View {
+    let action: RouteAction
+
+    var body: some View {
+        Button(action: action.perform) {
+            HStack(spacing: 5) {
+                Image(systemName: action.icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(action.label)
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .background(Color(.systemBackground).opacity(0.8))
+            .clipShape(Capsule())
+        }
+        .foregroundStyle(.primary)
+    }
+}
+
+// MARK: - Web Preview
 
 struct WebPreview: UIViewRepresentable {
     let url: URL
     let onTitleLoaded: (String) -> Void
+    var onURLChanged: ((URL) -> Void)?
+    var onWebViewReady: ((WKWebView) -> Void)?
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
-        webView.isOpaque = false
+        webView.allowsBackForwardNavigationGestures = true
+        context.coordinator.requestedURL = url
         webView.load(URLRequest(url: url))
+        onWebViewReady?(webView)
         return webView
     }
 
-    func updateUIView(_ webView: WKWebView, context: Context) {}
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        if context.coordinator.requestedURL != url {
+            context.coordinator.requestedURL = url
+            webView.load(URLRequest(url: url))
+        }
+        context.coordinator.onURLChanged = onURLChanged
+    }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onTitleLoaded: onTitleLoaded)
+        Coordinator(onTitleLoaded: onTitleLoaded, onURLChanged: onURLChanged)
     }
 
     class Coordinator: NSObject, WKNavigationDelegate {
         let onTitleLoaded: (String) -> Void
+        var onURLChanged: ((URL) -> Void)?
+        var requestedURL: URL?
 
-        init(onTitleLoaded: @escaping (String) -> Void) {
+        init(onTitleLoaded: @escaping (String) -> Void, onURLChanged: ((URL) -> Void)?) {
             self.onTitleLoaded = onTitleLoaded
+            self.onURLChanged = onURLChanged
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -153,28 +197,60 @@ struct WebPreview: UIViewRepresentable {
                     self.onTitleLoaded(title)
                 }
             }
+            // Update URL bar when user navigates within the browser
+            if let currentURL = webView.url, currentURL != requestedURL {
+                requestedURL = currentURL
+                DispatchQueue.main.async {
+                    self.onURLChanged?(currentURL)
+                }
+            }
         }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {}
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {}
     }
 }
 
-// Hex color extension
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let r, g, b: UInt64
-        switch hex.count {
-        case 6:
-            (r, g, b) = ((int >> 16) & 0xFF, (int >> 8) & 0xFF, int & 0xFF)
-        default:
-            (r, g, b) = (0, 0, 0)
+// MARK: - Flow Layout
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        return result.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        for (index, position) in result.positions.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
         }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255
-        )
+    }
+
+    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> (positions: [CGPoint], size: CGSize) {
+        let maxWidth = proposal.width ?? .infinity
+        var positions: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var totalHeight: CGFloat = 0
+        var totalWidth: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth && x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            positions.append(CGPoint(x: x, y: y))
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+            totalWidth = max(totalWidth, x - spacing)
+        }
+        totalHeight = y + rowHeight
+
+        return (positions, CGSize(width: totalWidth, height: totalHeight))
     }
 }
