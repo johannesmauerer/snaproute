@@ -11,12 +11,13 @@ targets:
     platform: iOS
     sources:
       - SnapRoute
+      - Shared
     info:
       path: SnapRoute/Info.plist
       properties:
-        CFBundleDisplayName: SnapRoute
+        CFBundleDisplayName: Lunet One
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "29"
+        CFBundleVersion: "34"
         CFBundleIconName: AppIcon
         ITSAppUsesNonExemptEncryption: false
         CFBundleURLTypes:
@@ -39,7 +40,6 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     entitlements:
       path: SnapRoute/SnapRoute.entitlements
-      properties: {}
     settings:
       base:
         SWIFT_VERSION: "5.9"
@@ -62,9 +62,9 @@ targets:
     info:
       path: ShareExtension/Info.plist
       properties:
-        CFBundleDisplayName: SnapRoute
+        CFBundleDisplayName: Lunet One
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "29"
+        CFBundleVersion: "34"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
@@ -72,6 +72,8 @@ targets:
             NSExtensionActivationRule:
               NSExtensionActivationSupportsWebURLWithMaxCount: 1
               NSExtensionActivationSupportsWebPageWithMaxCount: 1
+    entitlements:
+      path: ShareExtension/ShareExtension.entitlements
     settings:
       base:
         SWIFT_VERSION: "5.9"
@@ -90,9 +92,9 @@ targets:
     info:
       path: ActionExtension/Info.plist
       properties:
-        CFBundleDisplayName: SnapRoute
+        CFBundleDisplayName: Lunet One
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "29"
+        CFBundleVersion: "34"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.ui-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ActionViewController
@@ -100,6 +102,8 @@ targets:
             NSExtensionActivationRule:
               NSExtensionActivationSupportsWebURLWithMaxCount: 1
               NSExtensionActivationSupportsWebPageWithMaxCount: 1
+    entitlements:
+      path: ActionExtension/ActionExtension.entitlements
     settings:
       base:
         SWIFT_VERSION: "5.9"

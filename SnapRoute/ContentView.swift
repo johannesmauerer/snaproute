@@ -61,7 +61,7 @@ struct ContentView: View {
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: router.isMinimized)
         .sheet(isPresented: $showSettings) {
-            SettingsView()
+            SettingsView(onDismiss: { router.reloadSettings() })
         }
         .sheet(isPresented: $router.showHistory) {
             HistoryView { url in

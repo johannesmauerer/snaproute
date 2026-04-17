@@ -17,32 +17,7 @@ security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 echo "==> Regenerating Xcode project..."
 xcodegen generate
 
-echo "==> Re-adding browser entitlements to Info.plist..."
-# xcodegen overwrites Info.plist, so we need to re-add browser entries
-# Check if CFBundleDocumentTypes already exists
-if ! grep -q "CFBundleDocumentTypes" SnapRoute/Info.plist; then
-    sed -i '' 's|</dict>|	<key>CFBundleDocumentTypes</key>\
-	<array>\
-		<dict>\
-			<key>CFBundleTypeRole</key>\
-			<string>Viewer</string>\
-			<key>CFBundleTypeName</key>\
-			<string>HTML Document</string>\
-			<key>LSHandlerRank</key>\
-			<string>Default</string>\
-			<key>LSItemContentTypes</key>\
-			<array>\
-				<string>public.url</string>\
-				<string>public.html</string>\
-			</array>\
-		</dict>\
-	</array>\
-	<key>LSApplicationQueriesSchemes</key>\
-	<array>\
-		<string>obsidian</string>\
-	</array>\
-</dict>|' SnapRoute/Info.plist
-fi
+echo "==> Skipping default browser registration (pending approval)..."
 
 echo "==> Archiving with xcodebuild..."
 xcodebuild -project SnapRoute.xcodeproj \

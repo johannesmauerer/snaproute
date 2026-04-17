@@ -23,6 +23,8 @@ struct RouteAction: Identifiable {
     let label: String
     let icon: String
     let perform: () -> Void
+    var longPressLabel: String?
+    var onLongPress: (() -> Void)?
 }
 
 @MainActor
@@ -38,11 +40,27 @@ class URLRouter: ObservableObject {
     weak var webView: WKWebView?
 
     private var cancellables = Set<AnyCancellable>()
+    private var cachedSettings: Settings = Settings.load()
+
+    /// Shared process pool for WKWebView — pre-warms the WebContent process
+    static let sharedProcessPool: WKProcessPool = {
+        let pool = WKProcessPool()
+        // Pre-warm by creating a throwaway web view
+        let config = WKWebViewConfiguration()
+        config.processPool = pool
+        let _ = WKWebView(frame: .zero, configuration: config)
+        return pool
+    }()
 
     struct ActionResult: Identifiable {
         let id = UUID()
         let message: String
         let isError: Bool
+    }
+
+    /// Call after saving settings to pick up changes
+    func reloadSettings() {
+        cachedSettings = Settings.load()
     }
 
     private func showToast(_ message: String, isError: Bool) {
@@ -55,7 +73,7 @@ class URLRouter: ObservableObject {
     }
 
     var availableActions: [RouteAction] {
-        let settings = Settings.load()
+        let settings = cachedSettings
 
         switch inputMode {
         case .empty:
@@ -66,7 +84,10 @@ class URLRouter: ObservableObject {
                 actions.append(RouteAction(id: "search", label: "Search", icon: "magnifyingglass", perform: searchGoogle))
             }
             if settings.isEnabled("obsidian") {
-                actions.append(RouteAction(id: "note", label: "Note", icon: "note.text", perform: saveTextToObsidian))
+                actions.append(RouteAction(id: "obsidian", label: "Obsidian", icon: "square.and.arrow.down", perform: { self.saveTextToObsidian() }, longPressLabel: "Save as Task", onLongPress: { self.saveTextToObsidian(asTask: true) }))
+            }
+            if settings.isEnabled("share") {
+                actions.append(RouteAction(id: "share", label: "Share", icon: "square.and.arrow.up", perform: { self.shareContent() }))
             }
             if settings.isEnabled("copy") {
                 actions.append(RouteAction(id: "copy", label: "Copy", icon: "doc.on.doc", perform: copyContent))
@@ -82,7 +103,10 @@ class URLRouter: ObservableObject {
                 actions.append(RouteAction(id: "shelfRead", label: "ShelfRead", icon: "book.closed", perform: sendToShelfRead))
             }
             if settings.isEnabled("obsidian") {
-                actions.append(RouteAction(id: "obsidian", label: "Obsidian", icon: "square.and.arrow.down", perform: saveToObsidian))
+                actions.append(RouteAction(id: "obsidian", label: "Obsidian", icon: "square.and.arrow.down", perform: { self.saveToObsidian() }, longPressLabel: "Save as Task", onLongPress: { self.saveToObsidian(asTask: true) }))
+            }
+            if settings.isEnabled("share") {
+                actions.append(RouteAction(id: "share", label: "Share", icon: "square.and.arrow.up", perform: { self.shareContent() }))
             }
             if settings.isEnabled("copy") {
                 actions.append(RouteAction(id: "copy", label: "Copy", icon: "doc.on.doc", perform: copyContent))
@@ -94,7 +118,7 @@ class URLRouter: ObservableObject {
 
     init() {
         $inputText
-            .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
+            .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
             .removeDuplicates()
             .sink { [weak self] _ in
                 self?.detectInputMode()
@@ -218,7 +242,7 @@ class URLRouter: ObservableObject {
     func sendToShelfRead() {
         guard let url = previewURL else { return }
 
-        let settings = Settings.load()
+        let settings = cachedSettings
         let ingestURL = settings.shelfReadIngestURL
         guard !ingestURL.isEmpty else {
             showToast("ShelfRead URL not configured", isError: true)
@@ -282,27 +306,75 @@ class URLRouter: ObservableObject {
         }.resume()
     }
 
-    func saveToObsidian() {
+    func saveToObsidian(asTask: Bool = false) {
         guard let url = previewURL else { return }
         recordHistory(action: "obsidian")
-        let settings = Settings.load()
-        let title = pageTitle ?? url.host ?? "Untitled"
+        let settings = cachedSettings
+        let title = pageTitle ?? Self.titleFromURL(url)
         let time = Self.timeFormatter.string(from: Date())
-        let content = "- \(time) [\(title)](\(url.absoluteString))"
 
+        // Try direct file access first
+        if settings.obsidianUseDirectAccess && ObsidianVaultManager.shared.hasVaultAccess {
+            if settings.obsidianDailyNote {
+                let prefix = asTask ? "- [ ] " : "- "
+                let line = "\(prefix)\(time) [\(title)](\(url.absoluteString))"
+                if ObsidianVaultManager.shared.appendToDailyNote(content: line, dailyNoteFolder: settings.obsidianFolder) {
+                    showToast(asTask ? "Saved as task" : "Saved to daily note", isError: false)
+                } else {
+                    showToast("Failed to save", isError: true)
+                }
+            } else {
+                let taskLine = asTask ? "- [ ] [\(title)](\(url.absoluteString))\n\n" : ""
+                let fullContent = "\(taskLine)# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Lunet One on \(Self.dateFormatter.string(from: Date()))"
+                if ObsidianVaultManager.shared.saveNote(title: title, content: fullContent, folder: settings.obsidianFolder) {
+                    showToast(asTask ? "Saved as task" : "Saved to Obsidian", isError: false)
+                } else {
+                    showToast("Failed to save", isError: true)
+                }
+            }
+            return
+        }
+
+        // Fallback to URI scheme
         if settings.obsidianDailyNote {
+            let content = "- \(time) [\(title)](\(url.absoluteString))"
             appendToDailyNote(content: content, settings: settings)
         } else {
-            let fullContent = "# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from SnapRoute on \(Self.dateFormatter.string(from: Date()))"
+            let fullContent = "# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Lunet One on \(Self.dateFormatter.string(from: Date()))"
             openObsidianNote(title: title, content: fullContent, settings: settings)
         }
     }
 
-    func saveTextToObsidian() {
+    func saveTextToObsidian(asTask: Bool = false) {
         guard case .text(let text) = inputMode else { return }
-        recordHistory(action: "note")
-        let settings = Settings.load()
+        recordHistory(action: "obsidian")
+        let settings = cachedSettings
 
+        // Try direct file access first
+        if settings.obsidianUseDirectAccess && ObsidianVaultManager.shared.hasVaultAccess {
+            if settings.obsidianDailyNote {
+                let time = Self.timeFormatter.string(from: Date())
+                let prefix = asTask ? "- [ ] " : "- "
+                let line = "\(prefix)\(time) \(text)"
+                if ObsidianVaultManager.shared.appendToDailyNote(content: line, dailyNoteFolder: settings.obsidianFolder) {
+                    showToast(asTask ? "Saved as task" : "Saved to daily note", isError: false)
+                } else {
+                    showToast("Failed to save", isError: true)
+                }
+            } else {
+                let title = String(text.prefix(50)).replacingOccurrences(of: "\n", with: " ")
+                let taskLine = asTask ? "- [ ] \(text)\n\n" : ""
+                let content = "\(taskLine)\(text)"
+                if ObsidianVaultManager.shared.saveNote(title: title, content: content, folder: settings.obsidianFolder) {
+                    showToast(asTask ? "Saved as task" : "Saved to Obsidian", isError: false)
+                } else {
+                    showToast("Failed to save", isError: true)
+                }
+            }
+            return
+        }
+
+        // Fallback to URI scheme
         if settings.obsidianDailyNote {
             let time = Self.timeFormatter.string(from: Date())
             appendToDailyNote(content: "- \(time) \(text)", settings: settings)
@@ -323,6 +395,28 @@ class URLRouter: ObservableObject {
             showToast("Copied", isError: false)
         case .empty:
             break
+        }
+    }
+
+    func shareContent() {
+        var items: [Any] = []
+        switch inputMode {
+        case .url(let url):
+            items = [url]
+        case .text(let text):
+            items = [text]
+        case .empty:
+            return
+        }
+        let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            // Find the topmost presented controller
+            var topVC = rootVC
+            while let presented = topVC.presentedViewController { topVC = presented }
+            activityVC.popoverPresentationController?.sourceView = topVC.view
+            activityVC.popoverPresentationController?.sourceRect = CGRect(x: topVC.view.bounds.midX, y: topVC.view.bounds.maxY - 100, width: 0, height: 0)
+            topVC.present(activityVC, animated: true)
         }
     }
 
@@ -405,4 +499,17 @@ class URLRouter: ObservableObject {
         f.dateFormat = "HH:mm"
         return f
     }()
+
+    /// Extract a readable title from a URL when page title isn't available.
+    /// e.g. "https://example.com/blog/my-post" → "my-post — example.com"
+    static func titleFromURL(_ url: URL) -> String {
+        let host = url.host ?? "Untitled"
+        let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if path.isEmpty { return host }
+        let lastSegment = path.components(separatedBy: "/").last ?? path
+        let cleaned = lastSegment
+            .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: "_", with: " ")
+        return "\(cleaned) — \(host)"
+    }
 }

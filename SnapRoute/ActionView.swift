@@ -28,15 +28,12 @@ struct FloatingInputBar: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
-            // Action buttons
-            if !router.availableActions.isEmpty {
-                FlowLayout(spacing: 8) {
-                    ForEach(router.availableActions) { action in
-                        FloatingActionButton(action: action)
-                    }
-                }
-                .padding(.horizontal, 12)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            // Action buttons — 2-column grid
+            let actions = router.availableActions
+            if !actions.isEmpty {
+                ActionGrid(actions: actions)
+                    .padding(.horizontal, 12)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
             // Input row
@@ -128,25 +125,54 @@ struct MinimizedBubble: View {
     }
 }
 
-// MARK: - Action Button
+// MARK: - Action Grid
 
-struct FloatingActionButton: View {
-    let action: RouteAction
+struct ActionGrid: View {
+    let actions: [RouteAction]
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8)
+    ]
 
     var body: some View {
-        Button(action: action.perform) {
-            HStack(spacing: 5) {
-                Image(systemName: action.icon)
-                    .font(.system(size: 12, weight: .semibold))
-                Text(action.label)
-                    .font(.system(size: 13, weight: .medium))
+        LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(actions) { action in
+                ActionGridButton(action: action)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(Color(.systemBackground).opacity(0.8))
-            .clipShape(Capsule())
         }
+    }
+}
+
+struct ActionGridButton: View {
+    let action: RouteAction
+    @State private var isPressed = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: action.icon)
+                .font(.system(size: 13, weight: .semibold))
+            Text(action.label)
+                .font(.system(size: 14, weight: .medium))
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(Color(.systemBackground).opacity(isPressed ? 0.5 : 0.8))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
         .foregroundStyle(.primary)
+        .onTapGesture { action.perform() }
+        .onLongPressGesture(minimumDuration: 0.4, pressing: { pressing in
+            withAnimation(.easeInOut(duration: 0.1)) { isPressed = pressing }
+        }) {
+            if let longPress = action.onLongPress {
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
+                longPress()
+            } else {
+                action.perform()
+            }
+        }
     }
 }
 
@@ -160,6 +186,7 @@ struct WebPreview: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        config.processPool = URLRouter.sharedProcessPool
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
@@ -211,46 +238,3 @@ struct WebPreview: UIViewRepresentable {
     }
 }
 
-// MARK: - Flow Layout
-
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let result = arrange(proposal: proposal, subviews: subviews)
-        return result.size
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = arrange(proposal: proposal, subviews: subviews)
-        for (index, position) in result.positions.enumerated() {
-            subviews[index].place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
-        }
-    }
-
-    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> (positions: [CGPoint], size: CGSize) {
-        let maxWidth = proposal.width ?? .infinity
-        var positions: [CGPoint] = []
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        var totalHeight: CGFloat = 0
-        var totalWidth: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > maxWidth && x > 0 {
-                x = 0
-                y += rowHeight + spacing
-                rowHeight = 0
-            }
-            positions.append(CGPoint(x: x, y: y))
-            rowHeight = max(rowHeight, size.height)
-            x += size.width + spacing
-            totalWidth = max(totalWidth, x - spacing)
-        }
-        totalHeight = y + rowHeight
-
-        return (positions, CGSize(width: totalWidth, height: totalHeight))
-    }
-}

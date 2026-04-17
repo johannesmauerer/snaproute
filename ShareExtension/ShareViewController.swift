@@ -20,12 +20,13 @@ class ShareViewController: UIViewController {
             appComponents.queryItems = [URLQueryItem(name: "url", value: url.absoluteString)]
             let appURL = appComponents.url
 
+            let s = Settings.load()
             let shareView = ShareSheetView(
                 url: url,
                 onOpenInApp: { [weak self] in self?.openExternalURL(appURL) },
-                onSafari: { [weak self] in self?.openExternalURL(url) },
-                onShelfRead: { [weak self] in self?.sendToShelfRead(url: url) },
-                onObsidian: { [weak self] in self?.openExternalURL(self?.buildObsidianURL(url: url)) },
+                onSafari: s.isEnabled("safari") ? { [weak self] in self?.openExternalURL(url) } : nil,
+                onShelfRead: s.isEnabled("shelfRead") ? { [weak self] in self?.sendToShelfRead(url: url) } : nil,
+                onObsidian: s.isEnabled("obsidian") ? { [weak self] in self?.saveToObsidian(url: url) } : nil,
                 onCopyLink: { [weak self] in self?.copyLink(url: url) },
                 onCancel: { [weak self] in self?.close() }
             )
@@ -102,8 +103,7 @@ class ShareViewController: UIViewController {
     }
 
     private func sendToShelfRead(url: URL) {
-        let defaults = UserDefaults(suiteName: "group.com.rawplusdry.snaproute") ?? .standard
-        let ingestStr = defaults.string(forKey: "shelfReadIngestURL") ?? ""
+        let ingestStr = Settings.load().shelfReadIngestURL
 
         guard !ingestStr.isEmpty,
               let baseComponents = URLComponents(string: ingestStr) else {
@@ -157,12 +157,44 @@ class ShareViewController: UIViewController {
         }.resume()
     }
 
-    private func buildObsidianURL(url: URL) -> URL? {
-        let defaults = UserDefaults(suiteName: "group.com.rawplusdry.snaproute") ?? .standard
-        let vault = defaults.string(forKey: "obsidianVault") ?? ""
-        let folder = defaults.string(forKey: "obsidianFolder") ?? "Inbox"
+    private func saveToObsidian(url: URL) {
+        let s = Settings.load()
+        let vault = s.obsidianVault
+        let folder = s.obsidianFolder
+        let useDirectAccess = s.obsidianUseDirectAccess
+        let saveAsTask = s.obsidianSaveAsTask
+        let dailyNote = s.obsidianDailyNote
         let title = url.host ?? "Untitled"
-        let content = "# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from SnapRoute"
+
+        // Try direct file access
+        if useDirectAccess && ObsidianVaultManager.shared.hasVaultAccess {
+            let success: Bool
+            if dailyNote {
+                let time = {
+                    let f = DateFormatter()
+                    f.dateFormat = "HH:mm"
+                    return f.string(from: Date())
+                }()
+                let prefix = saveAsTask ? "- [ ] " : "- "
+                let line = "\(prefix)\(time) [\(title)](\(url.absoluteString))"
+                success = ObsidianVaultManager.shared.appendToDailyNote(content: line, dailyNoteFolder: folder)
+            } else {
+                let taskLine = saveAsTask ? "- [ ] [\(title)](\(url.absoluteString))\n\n" : ""
+                let content = "\(taskLine)# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Lunet One"
+                success = ObsidianVaultManager.shared.saveNote(title: title, content: content, folder: folder)
+            }
+            showFeedbackAndDismiss(success ? "Saved to Obsidian ✓" : "Failed to save", delay: success ? 0.8 : 1.5)
+            return
+        }
+
+        // Fallback to URI scheme
+        if let obsidianURL = buildObsidianURI(url: url, vault: vault, folder: folder, title: title) {
+            openExternalURL(obsidianURL)
+        }
+    }
+
+    private func buildObsidianURI(url: URL, vault: String, folder: String, title: String) -> URL? {
+        let content = "# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Lunet One"
 
         var components = URLComponents()
         components.scheme = "obsidian"
