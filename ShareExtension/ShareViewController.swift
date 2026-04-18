@@ -162,7 +162,6 @@ class ShareViewController: UIViewController {
         let vault = s.obsidianVault
         let folder = s.obsidianFolder
         let useDirectAccess = s.obsidianUseDirectAccess
-        let saveAsTask = s.obsidianSaveAsTask
         let dailyNote = s.obsidianDailyNote
         let title = url.host ?? "Untitled"
 
@@ -175,12 +174,10 @@ class ShareViewController: UIViewController {
                     f.dateFormat = "HH:mm"
                     return f.string(from: Date())
                 }()
-                let prefix = saveAsTask ? "- [ ] " : "- "
-                let line = "\(prefix)\(time) [\(title)](\(url.absoluteString))"
+                let line = "- \(time) [\(title)](\(url.absoluteString))"
                 success = ObsidianVaultManager.shared.appendToDailyNote(content: line, dailyNoteFolder: folder)
             } else {
-                let taskLine = saveAsTask ? "- [ ] [\(title)](\(url.absoluteString))\n\n" : ""
-                let content = "\(taskLine)# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Lunet One"
+                let content = "# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Emberleap"
                 success = ObsidianVaultManager.shared.saveNote(title: title, content: content, folder: folder)
             }
             showFeedbackAndDismiss(success ? "Saved to Obsidian ✓" : "Failed to save", delay: success ? 0.8 : 1.5)
@@ -194,7 +191,7 @@ class ShareViewController: UIViewController {
     }
 
     private func buildObsidianURI(url: URL, vault: String, folder: String, title: String) -> URL? {
-        let content = "# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Lunet One"
+        let content = "# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Emberleap"
 
         var components = URLComponents()
         components.scheme = "obsidian"

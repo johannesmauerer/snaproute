@@ -15,9 +15,9 @@ targets:
     info:
       path: SnapRoute/Info.plist
       properties:
-        CFBundleDisplayName: Lunet One
+        CFBundleDisplayName: Emberleap
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "35"
+        CFBundleVersion: "37"
         CFBundleIconName: AppIcon
         ITSAppUsesNonExemptEncryption: false
         CFBundleURLTypes:
@@ -62,9 +62,9 @@ targets:
     info:
       path: ShareExtension/Info.plist
       properties:
-        CFBundleDisplayName: Lunet One
+        CFBundleDisplayName: Emberleap
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "35"
+        CFBundleVersion: "37"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
@@ -92,9 +92,9 @@ targets:
     info:
       path: ActionExtension/Info.plist
       properties:
-        CFBundleDisplayName: Lunet One
+        CFBundleDisplayName: Emberleap
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "35"
+        CFBundleVersion: "37"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.ui-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ActionViewController

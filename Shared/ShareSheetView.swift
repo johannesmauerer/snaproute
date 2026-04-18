@@ -70,7 +70,7 @@ struct ShareSheetView: View {
                     // Actions
                     VStack(spacing: 0) {
                         if let onOpenInApp {
-                            ShareActionRow(title: "Open in Lunet One", icon: "arrow.up.forward.app", action: onOpenInApp)
+                            ShareActionRow(title: "Open in Emberleap", icon: "arrow.up.forward.app", action: onOpenInApp)
                             Divider().padding(.leading, 56)
                         }
                         if let onSafari {

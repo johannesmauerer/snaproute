@@ -10,7 +10,10 @@ struct ActionConfig: Codable, Identifiable {
     // Built-in action definitions
     static let safari = ActionConfig(id: "safari", name: "Safari", icon: "safari", isEnabled: true, config: [:])
     static let shelfRead = ActionConfig(id: "shelfRead", name: "ShelfRead", icon: "book.closed", isEnabled: false, config: ["ingestURL": ""])
-    static let obsidian = ActionConfig(id: "obsidian", name: "Obsidian", icon: "square.and.arrow.down", isEnabled: true, config: ["vault": "", "folder": "Inbox", "dailyNote": "false", "useDirectAccess": "false", "saveAsTask": "false"])
+    static let obsidian = ActionConfig(id: "obsidian", name: "Note", icon: "note.text", isEnabled: true, config: ["vault": "", "folder": "Inbox", "dailyNote": "true", "useDirectAccess": "false"])
+    static let obsidianTask = ActionConfig(id: "obsidianTask", name: "Task", icon: "checkmark.square", isEnabled: true, config: [:])
+    static let obsidianHistory = ActionConfig(id: "obsidianHistory", name: "History", icon: "clock.arrow.trianglehead.counterclockwise.rotate.90", isEnabled: false, config: [:])
+    static let kurato = ActionConfig(id: "kurato", name: "Kurato", icon: "tray.and.arrow.down", isEnabled: false, config: ["ingestURL": "", "apiKey": ""])
     static let search = ActionConfig(id: "search", name: "Search", icon: "magnifyingglass", isEnabled: true, config: [:])
     static let share = ActionConfig(id: "share", name: "Share", icon: "square.and.arrow.up", isEnabled: true, config: [:])
     static let copy = ActionConfig(id: "copy", name: "Copy", icon: "doc.on.doc", isEnabled: true, config: [:])
@@ -20,7 +23,7 @@ struct Settings: Codable {
     var actions: [ActionConfig]
 
     static let defaultSettings = Settings(actions: [
-        .safari, .shelfRead, .obsidian, .search, .share, .copy
+        .safari, .shelfRead, .obsidian, .obsidianTask, .obsidianHistory, .kurato, .search, .share, .copy
     ])
 
     // Convenience accessors
@@ -39,8 +42,11 @@ struct Settings: Codable {
     var obsidianUseDirectAccess: Bool {
         get { action("obsidian")?.config["useDirectAccess"] == "true" }
     }
-    var obsidianSaveAsTask: Bool {
-        get { action("obsidian")?.config["saveAsTask"] == "true" }
+    var kuratoIngestURL: String {
+        get { action("kurato")?.config["ingestURL"] ?? "" }
+    }
+    var kuratoApiKey: String {
+        get { action("kurato")?.config["apiKey"] ?? "" }
     }
 
     func action(_ id: String) -> ActionConfig? {
@@ -62,7 +68,31 @@ struct Settings: Codable {
     static func load() -> Settings {
         let defaults = sharedDefaults
         if let data = defaults.data(forKey: "snaproute_actions"),
-           let settings = try? JSONDecoder().decode(Settings.self, from: data) {
+           var settings = try? JSONDecoder().decode(Settings.self, from: data) {
+            // Migration: add new actions if missing
+            let newActions: [ActionConfig] = [.obsidianTask, .obsidianHistory, .kurato]
+            for newAction in newActions {
+                if settings.action(newAction.id) == nil {
+                    // Insert after obsidian for obsidian-related, or before search for kurato
+                    if let obsIdx = settings.actions.firstIndex(where: { $0.id == "obsidian" }),
+                       newAction.id.hasPrefix("obsidian") {
+                        settings.actions.insert(newAction, at: obsIdx + 1 + (newAction.id == "obsidianHistory" ? 1 : 0))
+                    } else if let searchIdx = settings.actions.firstIndex(where: { $0.id == "search" }) {
+                        settings.actions.insert(newAction, at: searchIdx)
+                    } else {
+                        settings.actions.append(newAction)
+                    }
+                }
+            }
+            // Migration: obsidian config cleanup (remove old saveAsTask key, default dailyNote to true)
+            if let obsIdx = settings.actions.firstIndex(where: { $0.id == "obsidian" }) {
+                settings.actions[obsIdx].config.removeValue(forKey: "saveAsTask")
+                settings.actions[obsIdx].name = "Note"
+                settings.actions[obsIdx].icon = "note.text"
+                if settings.actions[obsIdx].config["dailyNote"] == nil {
+                    settings.actions[obsIdx].config["dailyNote"] = "true"
+                }
+            }
             return settings
         }
         // Also check standard defaults for migration

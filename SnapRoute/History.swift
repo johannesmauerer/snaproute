@@ -23,7 +23,9 @@ struct HistoryEntry: Codable, Identifiable {
         switch action {
         case "safari": return "Opened in Safari"
         case "shelfRead": return "Sent to ShelfRead"
-        case "obsidian": return "Saved to Obsidian"
+        case "obsidian": return "Saved note"
+        case "obsidianTask": return "Saved task"
+        case "kurato": return "Sent to Kurato"
         case "search": return "Searched"
         case "copy": return "Copied"
         case "visit": return "Visited"

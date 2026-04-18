@@ -48,6 +48,26 @@ struct SettingsView: View {
                             } label: {
                                 ActionToggleRow(action: $settings.actions[index])
                             }
+                        case "obsidianTask":
+                            ActionToggleRow(action: $settings.actions[index])
+                        case "obsidianHistory":
+                            ActionToggleRow(action: $settings.actions[index])
+                        case "kurato":
+                            DisclosureGroup {
+                                SettingsField(
+                                    label: "Cloud Function URL",
+                                    placeholder: "https://us-central1-kurato-1.cloudfunctions.net/ingestExternalLink",
+                                    text: configBinding(index: index, key: "ingestURL"),
+                                    keyboardType: .URL
+                                )
+                                SettingsField(
+                                    label: "API Key",
+                                    placeholder: "Paste from Kurato settings",
+                                    text: configBinding(index: index, key: "apiKey")
+                                )
+                            } label: {
+                                ActionToggleRow(action: $settings.actions[index])
+                            }
                         case "search", "share", "copy":
                             ActionToggleRow(action: $settings.actions[index])
                         default:

@@ -84,7 +84,10 @@ class URLRouter: ObservableObject {
                 actions.append(RouteAction(id: "search", label: "Search", icon: "magnifyingglass", perform: searchGoogle))
             }
             if settings.isEnabled("obsidian") {
-                actions.append(RouteAction(id: "obsidian", label: "Obsidian", icon: "square.and.arrow.down", perform: { self.saveTextToObsidian() }, longPressLabel: "Save as Task", onLongPress: { self.saveTextToObsidian(asTask: true) }))
+                actions.append(RouteAction(id: "obsidian", label: "Note", icon: "note.text", perform: { self.saveTextToObsidian() }))
+            }
+            if settings.isEnabled("obsidianTask") {
+                actions.append(RouteAction(id: "obsidianTask", label: "Task", icon: "checkmark.square", perform: { self.saveTextToObsidian(asTask: true) }))
             }
             if settings.isEnabled("share") {
                 actions.append(RouteAction(id: "share", label: "Share", icon: "square.and.arrow.up", perform: { self.shareContent() }))
@@ -103,7 +106,13 @@ class URLRouter: ObservableObject {
                 actions.append(RouteAction(id: "shelfRead", label: "ShelfRead", icon: "book.closed", perform: sendToShelfRead))
             }
             if settings.isEnabled("obsidian") {
-                actions.append(RouteAction(id: "obsidian", label: "Obsidian", icon: "square.and.arrow.down", perform: { self.saveToObsidian() }, longPressLabel: "Save as Task", onLongPress: { self.saveToObsidian(asTask: true) }))
+                actions.append(RouteAction(id: "obsidian", label: "Note", icon: "note.text", perform: { self.saveToObsidian() }))
+            }
+            if settings.isEnabled("obsidianTask") {
+                actions.append(RouteAction(id: "obsidianTask", label: "Task", icon: "checkmark.square", perform: { self.saveToObsidian(asTask: true) }))
+            }
+            if settings.isEnabled("kurato") {
+                actions.append(RouteAction(id: "kurato", label: "Kurato", icon: "tray.and.arrow.down", perform: sendToKurato))
             }
             if settings.isEnabled("share") {
                 actions.append(RouteAction(id: "share", label: "Share", icon: "square.and.arrow.up", perform: { self.shareContent() }))
@@ -308,7 +317,8 @@ class URLRouter: ObservableObject {
 
     func saveToObsidian(asTask: Bool = false) {
         guard let url = previewURL else { return }
-        recordHistory(action: "obsidian")
+        let actionType = asTask ? "obsidianTask" : "obsidian"
+        recordHistory(action: actionType)
         let settings = cachedSettings
         let title = pageTitle ?? Self.titleFromURL(url)
         let time = Self.timeFormatter.string(from: Date())
@@ -319,15 +329,19 @@ class URLRouter: ObservableObject {
                 let prefix = asTask ? "- [ ] " : "- "
                 let line = "\(prefix)\(time) [\(title)](\(url.absoluteString))"
                 if ObsidianVaultManager.shared.appendToDailyNote(content: line, dailyNoteFolder: settings.obsidianFolder) {
-                    showToast(asTask ? "Saved as task" : "Saved to daily note", isError: false)
+                    showToast(asTask ? "Saved task" : "Saved note", isError: false)
+                    logToObsidianHistory(action: asTask ? "task" : "note", title: title, url: url.absoluteString)
+                    clearInput()
                 } else {
                     showToast("Failed to save", isError: true)
                 }
             } else {
                 let taskLine = asTask ? "- [ ] [\(title)](\(url.absoluteString))\n\n" : ""
-                let fullContent = "\(taskLine)# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Lunet One on \(Self.dateFormatter.string(from: Date()))"
+                let fullContent = "\(taskLine)# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Emberleap on \(Self.dateFormatter.string(from: Date()))"
                 if ObsidianVaultManager.shared.saveNote(title: title, content: fullContent, folder: settings.obsidianFolder) {
-                    showToast(asTask ? "Saved as task" : "Saved to Obsidian", isError: false)
+                    showToast(asTask ? "Saved task" : "Saved note", isError: false)
+                    logToObsidianHistory(action: asTask ? "task" : "note", title: title, url: url.absoluteString)
+                    clearInput()
                 } else {
                     showToast("Failed to save", isError: true)
                 }
@@ -337,17 +351,22 @@ class URLRouter: ObservableObject {
 
         // Fallback to URI scheme
         if settings.obsidianDailyNote {
-            let content = "- \(time) [\(title)](\(url.absoluteString))"
+            let content = asTask ? "- [ ] \(time) [\(title)](\(url.absoluteString))" : "- \(time) [\(title)](\(url.absoluteString))"
             appendToDailyNote(content: content, settings: settings)
+            logToObsidianHistory(action: asTask ? "task" : "note", title: title, url: url.absoluteString)
+            clearInput()
         } else {
-            let fullContent = "# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Lunet One on \(Self.dateFormatter.string(from: Date()))"
+            let fullContent = "# \(title)\n\nSource: [\(url.absoluteString)](\(url.absoluteString))\n\nSaved from Emberleap on \(Self.dateFormatter.string(from: Date()))"
             openObsidianNote(title: title, content: fullContent, settings: settings)
+            logToObsidianHistory(action: asTask ? "task" : "note", title: title, url: url.absoluteString)
+            clearInput()
         }
     }
 
     func saveTextToObsidian(asTask: Bool = false) {
         guard case .text(let text) = inputMode else { return }
-        recordHistory(action: "obsidian")
+        let actionType = asTask ? "obsidianTask" : "obsidian"
+        recordHistory(action: actionType)
         let settings = cachedSettings
 
         // Try direct file access first
@@ -357,7 +376,9 @@ class URLRouter: ObservableObject {
                 let prefix = asTask ? "- [ ] " : "- "
                 let line = "\(prefix)\(time) \(text)"
                 if ObsidianVaultManager.shared.appendToDailyNote(content: line, dailyNoteFolder: settings.obsidianFolder) {
-                    showToast(asTask ? "Saved as task" : "Saved to daily note", isError: false)
+                    showToast(asTask ? "Saved task" : "Saved note", isError: false)
+                    logToObsidianHistory(action: asTask ? "task" : "note", title: text, url: nil)
+                    clearInput()
                 } else {
                     showToast("Failed to save", isError: true)
                 }
@@ -366,7 +387,9 @@ class URLRouter: ObservableObject {
                 let taskLine = asTask ? "- [ ] \(text)\n\n" : ""
                 let content = "\(taskLine)\(text)"
                 if ObsidianVaultManager.shared.saveNote(title: title, content: content, folder: settings.obsidianFolder) {
-                    showToast(asTask ? "Saved as task" : "Saved to Obsidian", isError: false)
+                    showToast(asTask ? "Saved task" : "Saved note", isError: false)
+                    logToObsidianHistory(action: asTask ? "task" : "note", title: text, url: nil)
+                    clearInput()
                 } else {
                     showToast("Failed to save", isError: true)
                 }
@@ -377,10 +400,15 @@ class URLRouter: ObservableObject {
         // Fallback to URI scheme
         if settings.obsidianDailyNote {
             let time = Self.timeFormatter.string(from: Date())
-            appendToDailyNote(content: "- \(time) \(text)", settings: settings)
+            let content = asTask ? "- [ ] \(time) \(text)" : "- \(time) \(text)"
+            appendToDailyNote(content: content, settings: settings)
+            logToObsidianHistory(action: asTask ? "task" : "note", title: text, url: nil)
+            clearInput()
         } else {
             let title = String(text.prefix(50)).replacingOccurrences(of: "\n", with: " ")
             openObsidianNote(title: title, content: text, settings: settings)
+            logToObsidianHistory(action: asTask ? "task" : "note", title: text, url: nil)
+            clearInput()
         }
     }
 
@@ -417,6 +445,106 @@ class URLRouter: ObservableObject {
             activityVC.popoverPresentationController?.sourceView = topVC.view
             activityVC.popoverPresentationController?.sourceRect = CGRect(x: topVC.view.bounds.midX, y: topVC.view.bounds.maxY - 100, width: 0, height: 0)
             topVC.present(activityVC, animated: true)
+        }
+    }
+
+    // MARK: - Kurato
+
+    func sendToKurato() {
+        guard let url = previewURL else { return }
+
+        let settings = cachedSettings
+        let ingestURL = settings.kuratoIngestURL
+        let apiKey = settings.kuratoApiKey
+
+        guard !ingestURL.isEmpty else {
+            showToast("Kurato URL not configured", isError: true)
+            return
+        }
+        guard !apiKey.isEmpty else {
+            showToast("Kurato API key not configured", isError: true)
+            return
+        }
+
+        // Extract HTML from WebView, then POST
+        if let webView = self.webView {
+            webView.evaluateJavaScript("document.documentElement.outerHTML") { [weak self] result, error in
+                let html = result as? String
+                self?.postToKurato(ingestURL: ingestURL, apiKey: apiKey, url: url, title: self?.pageTitle, html: html)
+            }
+        } else {
+            postToKurato(ingestURL: ingestURL, apiKey: apiKey, url: url, title: pageTitle, html: nil)
+        }
+    }
+
+    private func postToKurato(ingestURL: String, apiKey: String, url: URL, title: String?, html: String?) {
+        guard let endpoint = URL(string: ingestURL) else {
+            showToast("Invalid Kurato URL", isError: true)
+            return
+        }
+
+        var payload: [String: String] = ["url": url.absoluteString]
+        if let html { payload["html"] = html }
+        if let title { payload["title"] = title }
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                if error != nil {
+                    self?.showToast("Failed to send", isError: true)
+                    return
+                }
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    self?.showToast("Kurato error", isError: true)
+                    return
+                }
+                if httpResponse.statusCode == 200 {
+                    // Try to parse projectName from response
+                    var toastMsg = "Sent to Kurato"
+                    if let data,
+                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let projectName = json["projectName"] as? String {
+                        toastMsg = "Sent to \(projectName)"
+                    }
+                    self?.recordHistory(action: "kurato")
+                    self?.showToast(toastMsg, isError: false)
+                    self?.logToObsidianHistory(action: "kurato", title: self?.pageTitle ?? Self.titleFromURL(url), url: url.absoluteString)
+                } else if httpResponse.statusCode == 401 {
+                    self?.showToast("Invalid API key", isError: true)
+                } else {
+                    self?.showToast("Kurato error (\(httpResponse.statusCode))", isError: true)
+                }
+            }
+        }.resume()
+    }
+
+    // MARK: - Obsidian History (background, best-effort)
+
+    private func logToObsidianHistory(action: String, title: String, url: String?) {
+        let settings = cachedSettings
+        guard settings.isEnabled("obsidianHistory"),
+              settings.obsidianUseDirectAccess,
+              ObsidianVaultManager.shared.hasVaultAccess else { return }
+
+        let folder = settings.obsidianFolder
+        let time = Self.timeFormatter.string(from: Date())
+        let linkPart: String
+        if let url {
+            linkPart = "[\(title)](\(url))"
+        } else {
+            linkPart = title
+        }
+        let line = "- \(time) **\(action)**: \(linkPart)"
+
+        // Fire-and-forget on background queue — must not slow down the app
+        DispatchQueue.global(qos: .utility).async {
+            _ = ObsidianVaultManager.shared.appendToDailyNote(content: line, dailyNoteFolder: folder)
         }
     }
 
