@@ -48,25 +48,22 @@ struct SettingsView: View {
                             }
                         case "obsidian":
                             DisclosureGroup {
-                                obsidianSettings(index: index)
+                                // Note toggle
+                                Toggle(isOn: $settings.actions[index].isEnabled) {
+                                    Label("Note button", systemImage: "note.text")
+                                }
+                                .font(.system(size: 14))
 
                                 // Task toggle
                                 if let taskIdx = settings.actions.firstIndex(where: { $0.id == "obsidianTask" }) {
-                                    Divider()
                                     Toggle(isOn: $settings.actions[taskIdx].isEnabled) {
                                         Label("Task button", systemImage: "checkmark.square")
                                     }
                                     .font(.system(size: 14))
-                                    if settings.actions[taskIdx].isEnabled {
-                                        Text("Adds a Task button that saves with a checkbox prefix")
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(.secondary)
-                                    }
                                 }
 
                                 // History toggle
                                 if let histIdx = settings.actions.firstIndex(where: { $0.id == "obsidianHistory" }) {
-                                    Divider()
                                     Toggle(isOn: $settings.actions[histIdx].isEnabled) {
                                         Label("Log history", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
                                     }
@@ -77,8 +74,12 @@ struct SettingsView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                 }
+
+                                Divider()
+
+                                obsidianSettings(index: index)
                             } label: {
-                                ActionToggleRow(action: $settings.actions[index])
+                                Label("Obsidian", systemImage: "square.and.arrow.down")
                             }
                         case "kurato":
                             DisclosureGroup {
