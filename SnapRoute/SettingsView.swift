@@ -45,13 +45,39 @@ struct SettingsView: View {
                         case "obsidian":
                             DisclosureGroup {
                                 obsidianSettings(index: index)
+
+                                // Task toggle
+                                if let taskIdx = settings.actions.firstIndex(where: { $0.id == "obsidianTask" }) {
+                                    Divider()
+                                    Toggle(isOn: $settings.actions[taskIdx].isEnabled) {
+                                        Label("Task button", systemImage: "checkmark.square")
+                                    }
+                                    .font(.system(size: 14))
+                                    if settings.actions[taskIdx].isEnabled {
+                                        Text("Adds a Task button that saves with a checkbox prefix")
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+
+                                // History toggle
+                                if let histIdx = settings.actions.firstIndex(where: { $0.id == "obsidianHistory" }) {
+                                    Divider()
+                                    Toggle(isOn: $settings.actions[histIdx].isEnabled) {
+                                        Label("Log history", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                                    }
+                                    .font(.system(size: 14))
+                                    if settings.actions[histIdx].isEnabled {
+                                        Text("Appends every action to your daily note in the background")
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                             } label: {
                                 ActionToggleRow(action: $settings.actions[index])
                             }
-                        case "obsidianTask":
-                            ActionToggleRow(action: $settings.actions[index])
-                        case "obsidianHistory":
-                            ActionToggleRow(action: $settings.actions[index])
+                        case "obsidianTask", "obsidianHistory":
+                            EmptyView()
                         case "kurato":
                             DisclosureGroup {
                                 SettingsField(
