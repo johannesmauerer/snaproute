@@ -17,7 +17,11 @@ struct SettingsView: View {
             List {
                 // Actions section
                 Section {
-                    ForEach(settings.actions.indices, id: \.self) { index in
+                    let visibleIndices = settings.actions.indices.filter { idx in
+                        let id = settings.actions[idx].id
+                        return id != "obsidianTask" && id != "obsidianHistory"
+                    }
+                    ForEach(visibleIndices, id: \.self) { index in
                         let action = settings.actions[index]
                         switch action.id {
                         case "safari":
@@ -76,8 +80,6 @@ struct SettingsView: View {
                             } label: {
                                 ActionToggleRow(action: $settings.actions[index])
                             }
-                        case "obsidianTask", "obsidianHistory":
-                            EmptyView()
                         case "kurato":
                             DisclosureGroup {
                                 SettingsField(
