@@ -10,7 +10,7 @@ struct ActionConfig: Codable, Identifiable {
     // Built-in action definitions
     static let safari = ActionConfig(id: "safari", name: "Safari", icon: "safari", isEnabled: true, config: [:])
     static let shelfRead = ActionConfig(id: "shelfRead", name: "ShelfRead", icon: "book.closed", isEnabled: false, config: ["ingestURL": ""])
-    static let obsidian = ActionConfig(id: "obsidian", name: "Note", icon: "note.text", isEnabled: true, config: ["vault": "", "folder": "Inbox", "dailyNote": "true", "useDirectAccess": "false"])
+    static let obsidian = ActionConfig(id: "obsidian", name: "Obsidian", icon: "square.and.arrow.down", isEnabled: true, config: ["vault": "", "folder": "Inbox", "dailyNote": "true", "useDirectAccess": "false"])
     static let obsidianTask = ActionConfig(id: "obsidianTask", name: "Task", icon: "checkmark.square", isEnabled: true, config: [:])
     static let obsidianHistory = ActionConfig(id: "obsidianHistory", name: "History", icon: "clock.arrow.trianglehead.counterclockwise.rotate.90", isEnabled: false, config: [:])
     static let kurato = ActionConfig(id: "kurato", name: "Kurato", icon: "tray.and.arrow.down", isEnabled: false, config: ["ingestURL": "", "apiKey": ""])
@@ -84,15 +84,22 @@ struct Settings: Codable {
                     }
                 }
             }
-            // Migration: obsidian config cleanup (remove old saveAsTask key, default dailyNote to true)
+            // Deduplicate actions (guard against buggy earlier migrations)
+            var seen = Set<String>()
+            settings.actions = settings.actions.filter { seen.insert($0.id).inserted }
+
+            // Migration: obsidian config cleanup
             if let obsIdx = settings.actions.firstIndex(where: { $0.id == "obsidian" }) {
                 settings.actions[obsIdx].config.removeValue(forKey: "saveAsTask")
-                settings.actions[obsIdx].name = "Note"
-                settings.actions[obsIdx].icon = "note.text"
+                // Name/icon don't matter — SettingsView hardcodes the disclosure label
+                settings.actions[obsIdx].name = "Obsidian"
+                settings.actions[obsIdx].icon = "square.and.arrow.down"
                 if settings.actions[obsIdx].config["dailyNote"] == nil {
                     settings.actions[obsIdx].config["dailyNote"] = "true"
                 }
             }
+            // Persist migration so it doesn't re-run every launch
+            settings.save()
             return settings
         }
         // Also check standard defaults for migration
