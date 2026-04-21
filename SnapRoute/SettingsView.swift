@@ -17,10 +17,8 @@ struct SettingsView: View {
             List {
                 // Actions section
                 Section {
-                    let visibleIndices = settings.actions.indices.filter { idx in
-                        let id = settings.actions[idx].id
-                        return id != "obsidianTask" && id != "obsidianHistory"
-                    }
+                    let visibleIds: Set<String> = ["safari", "shelfRead", "obsidian", "kurato", "search", "share", "copy"]
+                    let visibleIndices = settings.actions.indices.filter { visibleIds.contains(settings.actions[$0].id) }
                     ForEach(visibleIndices, id: \.self) { index in
                         let action = settings.actions[index]
                         switch action.id {
@@ -100,7 +98,7 @@ struct SettingsView: View {
                         case "search", "share", "copy":
                             ActionToggleRow(action: $settings.actions[index])
                         default:
-                            ActionToggleRow(action: $settings.actions[index])
+                            EmptyView()
                         }
                     }
                 } header: {
