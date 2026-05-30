@@ -5,6 +5,7 @@ struct SettingsView: View {
     @State private var settings: Settings
     @State private var showVaultPicker = false
     @State private var vaultFolders: [String] = []
+    @State private var developerMode = false
     var onDismiss: (() -> Void)?
 
     init(onDismiss: (() -> Void)? = nil) {
@@ -17,7 +18,11 @@ struct SettingsView: View {
             List {
                 // Actions section
                 Section {
-                    let visibleIds: Set<String> = ["safari", "shelfRead", "obsidian", "kurato", "search", "share", "copy"]
+                    var visibleIds: Set<String> {
+                        var ids: Set<String> = ["safari", "shelfRead", "obsidian", "kurato", "search", "share", "copy"]
+                        _ = developerMode
+                        return ids
+                    }
                     let visibleIndices = settings.actions.indices.filter { visibleIds.contains(settings.actions[$0].id) }
                     ForEach(visibleIndices, id: \.self) { index in
                         let action = settings.actions[index]
@@ -83,7 +88,7 @@ struct SettingsView: View {
                             DisclosureGroup {
                                 SettingsField(
                                     label: "Cloud Function URL",
-                                    placeholder: "https://us-central1-kurato-1.cloudfunctions.net/ingestExternalLink",
+                                    placeholder: "https://your-project.cloudfunctions.net/ingestExternalLink",
                                     text: configBinding(index: index, key: "ingestURL"),
                                     keyboardType: .URL
                                 )
@@ -111,6 +116,13 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Settings")
+                        .font(.headline)
+                        .onTapGesture(count: 5) {
+                            developerMode.toggle()
+                        }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         settings.save()
@@ -125,12 +137,12 @@ struct SettingsView: View {
                     ObsidianVaultManager.shared.saveBookmark(for: url)
                     settings.updateConfig("obsidian", key: "useDirectAccess", value: "true")
                     settings.updateConfig("obsidian", key: "vault", value: url.lastPathComponent)
-                    vaultFolders = ObsidianVaultManager.shared.listFolders()
+                    vaultFolders = ObsidianVaultManager.shared.listAllFolders()
                 }
             }
             .onAppear {
                 if ObsidianVaultManager.shared.hasVaultAccess {
-                    vaultFolders = ObsidianVaultManager.shared.listFolders()
+                    vaultFolders = ObsidianVaultManager.shared.listAllFolders()
                 }
             }
         }

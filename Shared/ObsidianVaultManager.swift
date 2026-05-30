@@ -90,6 +90,39 @@ class ObsidianVaultManager {
             .sorted()
     }
 
+    /// List every folder in the vault as a relative path ("Personal/Journal/Daily").
+    /// Walks recursively, capped at a reasonable depth to keep large vaults responsive.
+    /// Hidden folders and `.obsidian` config are skipped.
+    func listAllFolders(maxDepth: Int = 6) -> [String] {
+        guard let vaultURL = resolveVaultURL() else { return [] }
+        defer { vaultURL.stopAccessingSecurityScopedResource() }
+
+        var results: [String] = []
+        let fm = FileManager.default
+
+        func walk(_ dir: URL, relativePath: String, depth: Int) {
+            guard depth <= maxDepth else { return }
+            guard let contents = try? fm.contentsOfDirectory(
+                at: dir,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            ) else { return }
+
+            for child in contents {
+                let isDir = (try? child.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                guard isDir else { continue }
+                let name = child.lastPathComponent
+                if name.hasPrefix(".") { continue }
+                let childRelative = relativePath.isEmpty ? name : "\(relativePath)/\(name)"
+                results.append(childRelative)
+                walk(child, relativePath: childRelative, depth: depth + 1)
+            }
+        }
+
+        walk(vaultURL, relativePath: "", depth: 1)
+        return results.sorted()
+    }
+
     // MARK: - Write Files
 
     /// Save content as a new markdown file in the vault.
@@ -106,7 +139,7 @@ class ObsidianVaultManager {
         let sanitizedTitle = sanitizeFilename(title)
         var targetDir = vaultURL
         if let folder, !folder.isEmpty {
-            targetDir = vaultURL.appendingPathComponent(folder, isDirectory: true)
+            targetDir = appendRelativePath(folder, to: vaultURL)
             try? FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
         }
 
@@ -131,7 +164,7 @@ class ObsidianVaultManager {
         let dateStr = Self.dailyNoteDateFormatter.string(from: Date())
         var targetDir = vaultURL
         if let folder = dailyNoteFolder, !folder.isEmpty {
-            targetDir = vaultURL.appendingPathComponent(folder, isDirectory: true)
+            targetDir = appendRelativePath(folder, to: vaultURL)
             try? FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
         }
 
@@ -147,13 +180,23 @@ class ObsidianVaultManager {
             handle.closeFile()
             return true
         } else {
-            // Create with header
-            let header = "# \(dateStr)\n\n\(content)"
-            return (try? header.write(to: fileURL, atomically: true, encoding: .utf8)) != nil
+            // Obsidian renders the filename as the note title, so no H1 needed.
+            return (try? content.write(to: fileURL, atomically: true, encoding: .utf8)) != nil
         }
     }
 
     // MARK: - Helpers
+
+    /// Append a slash-separated relative path ("Personal/Journal/Daily") to a base URL,
+    /// adding each segment as its own path component so a literal slash isn't treated
+    /// as a single filename character.
+    private func appendRelativePath(_ relative: String, to base: URL) -> URL {
+        var url = base
+        for segment in relative.split(separator: "/") where !segment.isEmpty {
+            url.appendPathComponent(String(segment), isDirectory: true)
+        }
+        return url
+    }
 
     private func sanitizeFilename(_ name: String) -> String {
         let illegal = CharacterSet(charactersIn: "/\\:*?\"<>|")

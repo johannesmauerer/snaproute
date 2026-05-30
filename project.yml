@@ -2,7 +2,7 @@ name: SnapRoute
 options:
   bundleIdPrefix: com.rawplusdry
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "18.0"
   xcodeVersion: "16.0"
 
 targets:
@@ -16,8 +16,8 @@ targets:
       path: SnapRoute/Info.plist
       properties:
         CFBundleDisplayName: Emberleap
-        CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "42"
+        CFBundleShortVersionString: "0.1.1"
+        CFBundleVersion: "49"
         CFBundleIconName: AppIcon
         ITSAppUsesNonExemptEncryption: false
         CFBundleURLTypes:
@@ -63,8 +63,8 @@ targets:
       path: ShareExtension/Info.plist
       properties:
         CFBundleDisplayName: Emberleap
-        CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "42"
+        CFBundleShortVersionString: "0.1.1"
+        CFBundleVersion: "49"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
@@ -83,6 +83,22 @@ targets:
         CODE_SIGN_STYLE: Automatic
         PRODUCT_BUNDLE_IDENTIFIER: com.rawplusdry.snaproute.share
 
+  SnapRouteTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - SnapRouteTests
+    dependencies:
+      - target: SnapRoute
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/SnapRoute.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SnapRoute
+        BUNDLE_LOADER: $(TEST_HOST)
+        DEVELOPMENT_TEAM: BU7LKZ75A7
+        PRODUCT_BUNDLE_IDENTIFIER: com.rawplusdry.snaproute.tests
+        GENERATE_INFOPLIST_FILE: YES
+
   SnapRouteAction:
     type: app-extension
     platform: iOS
@@ -93,8 +109,8 @@ targets:
       path: ActionExtension/Info.plist
       properties:
         CFBundleDisplayName: Emberleap
-        CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "42"
+        CFBundleShortVersionString: "0.1.1"
+        CFBundleVersion: "49"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.ui-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ActionViewController
