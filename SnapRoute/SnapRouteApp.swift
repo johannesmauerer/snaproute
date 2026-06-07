@@ -7,9 +7,6 @@ struct SnapRouteApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(router: router)
-                .onOpenURL { url in
-                    router.handleURL(url)
-                }
         }
     }
 }

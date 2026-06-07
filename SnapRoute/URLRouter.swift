@@ -36,6 +36,8 @@ class URLRouter: ObservableObject {
     @Published var actionResult: ActionResult?
     @Published var isMinimized: Bool = false
     @Published var showHistory: Bool = false
+    /// Bumped to ask ContentView to refocus the input field (cursor goes to end).
+    @Published var focusInputToken: Int = 0
 
     weak var webView: WKWebView?
 
@@ -144,7 +146,7 @@ class URLRouter: ObservableObject {
             inputMode = .empty
             previewURL = nil
             pageTitle = nil
-            actionResult = nil
+            // Don't clear actionResult — let toast self-dismiss
             return
         }
 
@@ -204,6 +206,15 @@ class URLRouter: ObservableObject {
         isMinimized = false
     }
 
+    /// Pre-fill the input field from a history entry without performing the action.
+    /// Mode (url vs text) is recomputed from the text by the debounced sink.
+    func recallToInput(_ text: String) {
+        actionResult = nil
+        isMinimized = false
+        inputText = text
+        focusInputToken &+= 1
+    }
+
     // MARK: - Submit (Return key)
 
     func handleSubmit() {
@@ -227,7 +238,7 @@ class URLRouter: ObservableObject {
         inputMode = .empty
         previewURL = nil
         pageTitle = nil
-        actionResult = nil
+        // Note: actionResult intentionally preserved — toast self-dismisses after 2.5s
     }
 
     func openInSafari() {
@@ -246,6 +257,7 @@ class URLRouter: ObservableObject {
         inputText = url.absoluteString
         pageTitle = nil
         actionResult = nil
+        isMinimized = true
     }
 
     func sendToShelfRead() {
@@ -327,7 +339,8 @@ class URLRouter: ObservableObject {
         if settings.obsidianUseDirectAccess && ObsidianVaultManager.shared.hasVaultAccess {
             if settings.obsidianDailyNote {
                 let prefix = asTask ? "- [ ] " : "- "
-                let line = "\(prefix)\(time) [\(title)](\(url.absoluteString))"
+                let stamp = asTask ? " ➕ \(Self.creationStampFormatter.string(from: Date()))" : ""
+                let line = asTask ? "\(prefix)[\(title)](\(url.absoluteString))\(stamp)" : "\(prefix)\(time) [\(title)](\(url.absoluteString))"
                 if ObsidianVaultManager.shared.appendToDailyNote(content: line, dailyNoteFolder: settings.obsidianFolder) {
                     showToast(asTask ? "Saved task" : "Saved note", isError: false)
                     logToObsidianHistory(action: asTask ? "task" : "note", title: title, url: url.absoluteString)
@@ -351,7 +364,7 @@ class URLRouter: ObservableObject {
 
         // Fallback to URI scheme
         if settings.obsidianDailyNote {
-            let content = asTask ? "- [ ] \(time) [\(title)](\(url.absoluteString))" : "- \(time) [\(title)](\(url.absoluteString))"
+            let content = asTask ? "- [ ] [\(title)](\(url.absoluteString)) ➕ \(Self.creationStampFormatter.string(from: Date()))" : "- \(time) [\(title)](\(url.absoluteString))"
             appendToDailyNote(content: content, settings: settings)
             logToObsidianHistory(action: asTask ? "task" : "note", title: title, url: url.absoluteString)
             clearInput()
@@ -374,7 +387,7 @@ class URLRouter: ObservableObject {
             if settings.obsidianDailyNote {
                 let time = Self.timeFormatter.string(from: Date())
                 let prefix = asTask ? "- [ ] " : "- "
-                let line = "\(prefix)\(time) \(text)"
+                let line = asTask ? "\(prefix)\(text) ➕ \(Self.creationStampFormatter.string(from: Date()))" : "\(prefix)\(time) \(text)"
                 if ObsidianVaultManager.shared.appendToDailyNote(content: line, dailyNoteFolder: settings.obsidianFolder) {
                     showToast(asTask ? "Saved task" : "Saved note", isError: false)
                     logToObsidianHistory(action: asTask ? "task" : "note", title: text, url: nil)
@@ -400,7 +413,7 @@ class URLRouter: ObservableObject {
         // Fallback to URI scheme
         if settings.obsidianDailyNote {
             let time = Self.timeFormatter.string(from: Date())
-            let content = asTask ? "- [ ] \(time) \(text)" : "- \(time) \(text)"
+            let content = asTask ? "- [ ] \(text) ➕ \(Self.creationStampFormatter.string(from: Date()))" : "- \(time) \(text)"
             appendToDailyNote(content: content, settings: settings)
             logToObsidianHistory(action: asTask ? "task" : "note", title: text, url: nil)
             clearInput()
@@ -532,6 +545,12 @@ class URLRouter: ObservableObject {
               settings.obsidianUseDirectAccess,
               ObsidianVaultManager.shared.hasVaultAccess else { return }
 
+        // Skip actions whose primary path already wrote a line to the daily note —
+        // logging here would duplicate the entry the user just saw appear.
+        if settings.obsidianDailyNote, action == "note" || action == "task" {
+            return
+        }
+
         let folder = settings.obsidianFolder
         let time = Self.timeFormatter.string(from: Date())
         let linkPart: String
@@ -625,6 +644,13 @@ class URLRouter: ObservableObject {
     private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm"
+        return f
+    }()
+
+    /// Obsidian Tasks creation-date format, appended to the end of a task line: "➕ 2026-06-07 14:30"
+    private static let creationStampFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm"
         return f
     }()
 

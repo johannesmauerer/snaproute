@@ -64,12 +64,15 @@ struct ContentView: View {
             SettingsView(onDismiss: { router.reloadSettings() })
         }
         .sheet(isPresented: $router.showHistory) {
-            HistoryView { url in
-                router.handleURL(url)
+            HistoryView { text in
+                router.recallToInput(text)
             }
         }
         .onOpenURL { url in
             router.handleURL(url)
+        }
+        .onChange(of: router.focusInputToken) { _, _ in
+            isInputFocused = true
         }
         .onAppear {
             if router.previewURL == nil {

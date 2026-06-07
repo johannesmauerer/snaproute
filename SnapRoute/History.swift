@@ -19,6 +19,15 @@ struct HistoryEntry: Codable, Identifiable {
         return text?.prefix(100).description ?? ""
     }
 
+    /// What to drop back into the input field when this row is tapped.
+    /// URL wins (re-renders preview); otherwise the original text; otherwise the title.
+    var recallText: String? {
+        if let url, !url.isEmpty { return url }
+        if let text, !text.isEmpty { return text }
+        if let title, !title.isEmpty { return title }
+        return nil
+    }
+
     var actionLabel: String {
         switch action {
         case "safari": return "Opened in Safari"
@@ -31,6 +40,35 @@ struct HistoryEntry: Codable, Identifiable {
         case "visit": return "Visited"
         default: return action
         }
+    }
+
+    /// Short label for filter chips and badges.
+    var actionShortLabel: String {
+        switch action {
+        case "safari": return "Safari"
+        case "shelfRead": return "ShelfRead"
+        case "obsidian": return "Note"
+        case "obsidianTask": return "Task"
+        case "kurato": return "Kurato"
+        case "search": return "Search"
+        case "copy": return "Copy"
+        case "visit": return "Visit"
+        default: return action.capitalized
+        }
+    }
+
+    /// Canonical action IDs in display order — used by the filter UI.
+    static let allActionTypes: [String] = [
+        "safari", "shelfRead", "obsidian", "obsidianTask", "kurato",
+        "search", "copy", "visit",
+    ]
+
+    /// Short label for an arbitrary action id (used by filter chips before
+    /// any entries with that action exist).
+    static func shortLabel(for action: String) -> String {
+        let stub = HistoryEntry(id: UUID(), url: nil, title: nil, text: nil,
+                                action: action, timestamp: Date())
+        return stub.actionShortLabel
     }
 
     private static let shortDateFormatter: DateFormatter = {
@@ -51,7 +89,7 @@ struct HistoryEntry: Codable, Identifiable {
 
 class HistoryStore {
     private static let key = "snaproute_history"
-    private static let maxEntries = 200
+    private static let maxEntries = 2000
     private static var cache: [HistoryEntry]?
 
     static func load() -> [HistoryEntry] {
