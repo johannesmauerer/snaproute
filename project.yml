@@ -16,7 +16,7 @@ targets:
       path: SnapRoute/Info.plist
       properties:
         CFBundleDisplayName: Emberleap
-        CFBundleShortVersionString: "0.1.1"
+        CFBundleShortVersionString: "0.4.0"
         CFBundleVersion: "51"
         CFBundleIconName: AppIcon
         ITSAppUsesNonExemptEncryption: false
@@ -63,7 +63,7 @@ targets:
       path: ShareExtension/Info.plist
       properties:
         CFBundleDisplayName: Emberleap
-        CFBundleShortVersionString: "0.1.1"
+        CFBundleShortVersionString: "0.4.0"
         CFBundleVersion: "51"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
@@ -109,7 +109,7 @@ targets:
       path: ActionExtension/Info.plist
       properties:
         CFBundleDisplayName: Emberleap
-        CFBundleShortVersionString: "0.1.1"
+        CFBundleShortVersionString: "0.4.0"
         CFBundleVersion: "51"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.ui-services
