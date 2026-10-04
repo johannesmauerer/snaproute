@@ -17,7 +17,7 @@ targets:
       properties:
         CFBundleDisplayName: Emberleap
         CFBundleShortVersionString: "0.4.0"
-        CFBundleVersion: "51"
+        CFBundleVersion: "52"
         CFBundleIconName: AppIcon
         ITSAppUsesNonExemptEncryption: false
         CFBundleURLTypes:
@@ -64,7 +64,7 @@ targets:
       properties:
         CFBundleDisplayName: Emberleap
         CFBundleShortVersionString: "0.4.0"
-        CFBundleVersion: "51"
+        CFBundleVersion: "52"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
@@ -110,7 +110,7 @@ targets:
       properties:
         CFBundleDisplayName: Emberleap
         CFBundleShortVersionString: "0.4.0"
-        CFBundleVersion: "51"
+        CFBundleVersion: "52"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.ui-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ActionViewController
